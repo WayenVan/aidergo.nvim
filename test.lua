@@ -1,23 +1,35 @@
-require("snacks")
+function wrap_path_with_quotes(path)
+	-- First, remove any existing quotes
+	path = path:gsub('^"(.*)"$', "%1")
 
-_G._term = Snacks.terminal.open("aider", {
-	win = {
-		position = "right",
-		size = 40,
-		on_buf = function(self)
-			print("Buffer ID: " .. self.buf)
-		end,
-		on_win = function(self)
-			print("Window ID: " .. self.win)
-		end,
-		on_close = function(self)
-			print("Window closed: " .. self.win)
-		end,
-	},
-	auto_insert = true,
-	start_insert = true,
-	auto_close = false,
-})
+	-- Escape backslashes (important for Windows paths)
+	path = path:gsub("\\", "\\\\")
+
+	-- Escape double quotes
+	path = path:gsub('"', '\\"')
+
+	-- Handle other special characters that could cause issues
+	-- Escape newlines, carriage returns, and tabs
+	path = path:gsub("\n", "\\n")
+	path = path:gsub("\r", "\\r")
+	path = path:gsub("\t", "\\t")
+
+	-- Wrap the path in double quotes
+	return '"' .. path .. '"'
+end
+
+-- Example with various special characters
+local paths = {
+	"/home/user/my documents/file.txt",
+	[[C:\Program Files\My App\config.json]],
+	'/path/with/quotes"here/file',
+	"/path/with\nnewline/file",
+	"/path/with\ttab/file",
+}
+
+for _, path in ipairs(paths) do
+	print(path .. " → " .. wrap_path_with_quotes(path))
+end
 
 -- term:destroy()
 -- print(term.buf)

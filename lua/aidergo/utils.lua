@@ -35,4 +35,24 @@ M.find_min_key = function(t)
 	return min_key
 end
 
+M.wrap_path_with_quotes = function(path)
+	-- First, remove any existing quotes
+	path = path:gsub('^"(.*)"$', "%1")
+
+	-- Escape backslashes (important for Windows paths)
+	path = path:gsub("\\", "\\\\")
+
+	-- Escape double quotes
+	path = path:gsub('"', '\\"')
+
+	-- Handle other special characters that could cause issues
+	-- Escape newlines, carriage returns, and tabs
+	path = path:gsub("\n", "\\n")
+	path = path:gsub("\r", "\\r")
+	path = path:gsub("\t", "\\t")
+
+	-- Wrap the path in double quotes
+	return '"' .. path .. '"'
+end
+
 return M
