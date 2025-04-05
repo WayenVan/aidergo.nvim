@@ -1,11 +1,14 @@
 local M = {}
-local t = require("toggleterm.terminal")
 local config = require("aidergo.config")
 local utils = require("aidergo.utils")
 --- Create  new aider terminal
+---
+local function get_channel(term)
+	return vim.api.nvim_get_option_value("channel", { buf = term.buf })
+end
 
-local function clean_terminal_input(term)
-	vim.fn.chansend(term.job_id, "\x15")
+local function clean_terminal_input(channel)
+	vim.fn.chansend(channel, "\x15")
 end
 
 local function smart_get_id()
@@ -23,13 +26,16 @@ local function smart_get_id()
 end
 
 --- create a new terminal instance for Aider
----@param direction? '"float"'|'"vertical"'|'"horizontal"' # Optional terminal direction, defaults to float
----@return number # The created terminal id
-M.create = function(direction)
-	direction = direction or config.default_direction
+---@param position? '"bottom"'|'"top"'|'"left"'|'"right"'|'"float"' # The position of the terminal, defaults to bottom
+---@param size? number # The size of the terminal, defaults to 40
+---@return number|nil # The created terminal id
+M.create = function(position, size)
+	position = position or config.position
+	size = size or config.size
 
 	local mode_arg = vim.opt.background:get() == "dark" and "--dark-mode" or "--light-mode"
-	local aider_cmd = "aider --no-auto-commits --pretty --stream " .. mode_arg
+	-- local aider_cmd = "aider" .. mode_arg
+	local aider_cmd = string.format("aider %s %s", table.concat(config.args, " "), mode_arg)
 
 	-- assign an id for this terminal
 	local assigned_id = nil
@@ -46,31 +52,27 @@ M.create = function(direction)
 		return nil
 	end
 
-	-- Create the terminal and assign it to the manager
-	local aider_term = t.Terminal:new({
-		cmd = aider_cmd,
-		dir = vim.fn.getcwd(),
-		direction = direction,
-		on_create = function(_)
-			_G.AidergoManager.last_opened_id = assigned_id
-		end,
-		on_open = function(_)
-			_G.AidergoManager.last_opened_id = assigned_id
-		end,
-		on_exit = function(_)
-			-- Remove the terminal from the manager when it exits
+	-- create new terminal instance
+	local aider_term = Snacks.terminal.open(aider_cmd, {
+		win = {
+			position = position,
+			size = size,
+		},
+		auto_insert = true,
+		start_insert = true,
+		auto_close = false,
+	})
+	_G.AidergoManager.terminals[assigned_id] = aider_term
+	vim.api.nvim_create_autocmd("TermClose", {
+		buffer = aider_term.buf,
+		callback = function()
+			-- Remove the terminal from the manager when it closes
 			_G.AidergoManager.terminals[assigned_id] = nil
 			if _G.AidergoManager.last_opened_id == assigned_id then
 				_G.AidergoManager.last_opened_id = nil
 			end
 		end,
-		close_on_exit = true,
-		hidden = true,
-		display_name = "Aider: " .. assigned_id,
 	})
-	_G.AidergoManager.terminals[assigned_id] = aider_term.id
-	aider_term:toggle()
-
 	return assigned_id
 end
 
@@ -80,37 +82,29 @@ end
 ---@param args? string[] # The arguments to send to the command
 M.send_cmd = function(aider_id, cmd_name, args)
 	args = args or {}
-	local term_id = _G.AidergoManager.terminals[aider_id]
-	if not term_id then
-		vim.notify(string.format("aidergo: Aider instance with ID %d does not exist", aider_id), vim.log.levels.ERROR)
-		return
-	end
 
-	local term = t.get(term_id, true)
+	local term = _G.AidergoManager.terminals[aider_id]
 	if not term then
-		vim.notify(string.format("aidergo: Terminal with ID %d does not exist", term_id), vim.log.levels.ERROR)
+		vim.notify(string.format("aidergo: Terminal with ID %d does not exist", aider_id), vim.log.levels.ERROR)
 		return
 	end
-
-	local cmd = string.format("/%s %s", cmd_name, table.concat(args, " "))
-	clean_terminal_input(term)
-	term:send(cmd)
+	local cmd = string.format("/%s %s\n", cmd_name, table.concat(args, " "))
+	local channel = get_channel(term)
+	clean_terminal_input(channel)
+	vim.fn.chansend(channel, cmd)
 end
 
 --- clean the inptut of the aider terminal
 ---@param aider_id? number # The  id of the aider instance
 M.clean_aider_input = function(aider_id)
-	local term_id = _G.AidergoManager.terminals[aider_id]
-	if not term_id then
-		error("Aider instance with ID " .. aider_id .. " does not exist.")
-	end
-
-	local term = t.get(term_id, true)
+	local term = _G.AidergoManager.terminals[aider_id]
 	if not term then
-		error("Terminal with ID " .. term_id .. " does not exist.")
+		vim.notify(string.format("aidergo: Terminal with ID %d does not exist", aider_id), vim.log.levels.ERROR)
+		return
 	end
 	-- sending a Ctrl+U to clear the input
-	clean_terminal_input(term)
+	local channel = get_channel(term)
+	clean_terminal_input(channel)
 end
 
 ---@param aider_id? number # The  id of the aider instance
@@ -142,37 +136,32 @@ M.remove_current_file = function(aider_id)
 end
 
 ---@param aider_id? number # The  id of the aider instance
----@param direction? '"float"'|'"vertical"'|'"horizontal"' # Optional terminal direction, defaults to float
-M.toggle = function(aider_id, direction)
-	direction = direction or config.default_direction
+---@param position? '"bottom"'|'"top"'|'"left"'|'"right"'|'"float"' # The position of the terminal, defaults to bottom
+---@param size? number # The size of the terminal, defaults to 40
+M.toggle = function(aider_id, position, size)
 	if not aider_id then
 		aider_id = smart_get_id()
 	end
 
+	position = position or config.position
+	size = size or config.size
+
 	if not aider_id then
-		local id = M.create(direction)
-		local term = t.get(id, true)
-		if term and not term:is_open() then
-			term:open()
-		end
-
-		if not term then
+		local id = M.create(position, size)
+		if not id then
 			error("Failed to create Aider terminal.")
+			return
 		end
-
 		return
 	end
 
-	local term_id = _G.AidergoManager.terminals[aider_id]
-	if not term_id then
-		error("Aider instance with ID " .. aider_id .. " does not exist.")
-	end
-
-	local term = t.get(term_id, true)
+	local term = _G.AidergoManager.terminals[aider_id]
 	if not term then
-		error("Terminal with ID " .. term_id .. " does not exist.")
+		error("Aider Terminal with ID " .. aider_id .. " does not exist.")
+		return
 	end
-	term:toggle(nil, direction)
+	-- vim.notify(direction)
+	term:show()
 end
 
 ---@return number[] # A list of all available Aider terminal ids
@@ -186,10 +175,9 @@ end
 
 --- shutdown all aider terminal
 M.clean_all = function()
-	for id, term_id in pairs(_G.AidergoManager.terminals) do
-		local term = t.get(term_id, true)
+	for id, term in pairs(_G.AidergoManager.terminals) do
 		if term then
-			term:shutdown()
+			term:destroy()
 			_G.AidergoManager.terminals[id] = nil
 		end
 	end

@@ -1,11 +1,18 @@
 ---@class AiderGoOpt
 ---@field mas_id? number
----@field default_direction? '"float"'|'"vertical"'|'"horizontal"' # Optional terminal direction, defaults to float
+---@field position? '"bottom"'|'"top"'|'"left"'|'"right"'|'"float"' # The position of the terminal, defaults to bottom
+---@field args? string[] # The arguments to pass to the AiderGo command
 
 ---@type AiderGoOpt
 local M = {
 	max_id = 999,
-	default_direction = "float",
+	position = "right",
+	size = 40,
+	args = {
+		"--pretty",
+		"--stream",
+		"--no-auto-commits",
+	},
 }
 
 return M

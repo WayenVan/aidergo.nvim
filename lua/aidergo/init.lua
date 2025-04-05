@@ -1,5 +1,5 @@
 ---@class AidergoManager
----@field terminals? table<number, number>  # Map of aidergo ID to toggle-term ids
+---@field terminals? table<number, snacks.terminal | snacks.win | unknown>  # maintan a terminal, buffer ids
 ---@field last_opened_id? number  # The last opened aidergo ID
 
 local M = {}
