@@ -149,7 +149,7 @@ M.toggle = function(aider_id, direction)
 	if not aider_id then
 		local id = M.create(direction)
 		local term = t.get(id, true)
-		if term and ~term:is_open() then
+		if term and not term:is_open() then
 			term:open()
 			return
 		end
