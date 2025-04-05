@@ -151,9 +151,13 @@ M.toggle = function(aider_id, direction)
 		local term = t.get(id, true)
 		if term and not term:is_open() then
 			term:open()
-			return
 		end
-		error("Failed to create Aider terminal.")
+
+		if not term then
+			error("Failed to create Aider terminal.")
+		end
+
+		return
 	end
 
 	local term_id = _G.AidergoManager.terminals[aider_id]
