@@ -118,6 +118,7 @@ M.add_current_file = function(aider_id)
 	end
 
 	local file_path = vim.fn.expand("%:p")
+	file_path = vim.fn.shellescape(file_path)
 	M.send_cmd(aider_id, "add", { file_path })
 end
 
@@ -132,6 +133,7 @@ M.remove_current_file = function(aider_id)
 	end
 
 	local file_path = vim.fn.expand("%:p")
+	file_path = vim.fn.shellescape(file_path)
 	M.send_cmd(aider_id, "drop", { file_path })
 end
 
