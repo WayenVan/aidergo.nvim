@@ -42,7 +42,8 @@ M.create = function(direction)
 
 	-- If no id is available, return an error
 	if assigned_id == nil then
-		error("No available terminal ID")
+		vim.notify("aidergo: No available terminal ID", vim.log.levels.ERROR)
+		return nil
 	end
 
 	-- Create the terminal and assign it to the manager
@@ -81,12 +82,14 @@ M.send_cmd = function(aider_id, cmd_name, args)
 	args = args or {}
 	local term_id = _G.AidergoManager.terminals[aider_id]
 	if not term_id then
-		error("Aider instance with ID " .. aider_id .. " does not exist.")
+		vim.notify(string.format("aidergo: Aider instance with ID %d does not exist", aider_id), vim.log.levels.ERROR)
+		return
 	end
 
 	local term = t.get(term_id, true)
 	if not term then
-		error("Terminal with ID " .. term_id .. " does not exist.")
+		vim.notify(string.format("aidergo: Terminal with ID %d does not exist", term_id), vim.log.levels.ERROR)
+		return
 	end
 
 	local cmd = string.format("/%s %s", cmd_name, table.concat(args, " "))
