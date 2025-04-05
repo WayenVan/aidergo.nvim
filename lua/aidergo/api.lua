@@ -177,4 +177,15 @@ M.get_aider_ids = function()
 	return ids
 end
 
+--- shutdown all aider terminal
+M.clean_all = function()
+	for id, term_id in pairs(_G.AidergoManager.terminals) do
+		local term = t.get(term_id, true)
+		if term then
+			term:shutdown()
+			_G.AidergoManager.terminals[id] = nil
+		end
+	end
+end
+
 return M
